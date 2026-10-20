@@ -1,0 +1,24 @@
+name: london_pulse
+version: "0.1.0"
+config-version: 2
+profile: london_pulse
+
+model-paths: ["models"]
+test-paths: ["tests"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Folder that holds the raw Parquet snapshots written by `london-pulse ingest`.
+  raw_path: "{{ env_var('LP_RAW_PATH', '../data/raw') }}"
+
+models:
+  london_pulse:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table

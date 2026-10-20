@@ -1,0 +1,31 @@
+[
+  {
+    "id": "BikePoints_1",
+    "commonName": "River Street , Clerkenwell",
+    "placeType": "BikePoint",
+    "lat": 51.529163,
+    "lon": -0.10997,
+    "additionalProperties": [
+      {"key": "TerminalName", "value": "001023"},
+      {"key": "Installed", "value": "true"},
+      {"key": "Locked", "value": "false"},
+      {"key": "NbBikes", "value": "4"},
+      {"key": "NbEmptyDocks", "value": "15"},
+      {"key": "NbDocks", "value": "19"},
+      {"key": "NbStandardBikes", "value": "3"},
+      {"key": "NbEBikes", "value": "1"}
+    ]
+  },
+  {
+    "id": "BikePoints_2",
+    "commonName": "Phillimore Gardens, Kensington",
+    "lat": 51.499606,
+    "lon": -0.197574,
+    "additionalProperties": [
+      {"key": "Installed", "value": "true"},
+      {"key": "Locked", "value": "true"},
+      {"key": "NbBikes", "value": ""},
+      {"key": "NbDocks", "value": "37"}
+    ]
+  }
+]

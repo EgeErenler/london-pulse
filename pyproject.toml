@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "london-pulse"
+version = "0.1.0"
+description = "An automated data pipeline that tracks London's transport, bikes, weather and air quality."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Ege Erenler" }]
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.1",
+    "pyarrow>=14",
+    "duckdb>=1.0",
+    "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dbt = ["dbt-duckdb>=1.8"]
+dev = ["pytest>=8", "ruff>=0.5", "responses>=0.25"]
+
+[project.scripts]
+london-pulse = "london_pulse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+london_pulse = ["templates/*.html"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

@@ -1,0 +1,89 @@
+name: Dashboard
+
+# Rebuild the dbt models from all snapshots and publish the dashboard to GitHub Pages.
+on:
+  schedule:
+    - cron: "23 */2 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "dbt/**"
+      - "src/**"
+      - ".github/workflows/dashboard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      has_data: ${{ steps.check.outputs.has_data }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the data branch
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - name: Check there is data to model
+        id: check
+        run: |
+          missing=0
+          for s in tfl_line_status tfl_bikepoints weather air_quality; do
+            ls data/raw/$s/*/*.parquet >/dev/null 2>&1 || missing=1
+          done
+          if [ $missing = 1 ]; then
+            echo "::notice::Not every source has data yet. Skipping this build."
+            echo "has_data=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_data=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.has_data == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        if: steps.check.outputs.has_data == 'true'
+        run: pip install ".[dbt]"
+
+      - name: dbt build (models + data tests)
+        if: steps.check.outputs.has_data == 'true'
+        working-directory: dbt
+        env:
+          LP_RAW_PATH: ../data/raw
+          LP_DUCKDB_PATH: ../london_pulse.duckdb
+        run: dbt build --profiles-dir .
+
+      - name: Build dashboard
+        if: steps.check.outputs.has_data == 'true'
+        run: london-pulse dashboard --db london_pulse.duckdb --out site
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.check.outputs.has_data == 'true'
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.has_data == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

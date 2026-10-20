@@ -1,0 +1,7 @@
+london_pulse:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('LP_DUCKDB_PATH', '../london_pulse.duckdb') }}"
+      threads: 4

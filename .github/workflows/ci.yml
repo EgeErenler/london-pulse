@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Lint, test and build (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev,dbt]"
+
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Unit tests
+        run: pytest -q
+
+      - name: Build sample data
+        env:
+          LP_DATA_DIR: .ci-data
+        run: london-pulse sample --days 3
+
+      - name: dbt build (models + data tests) on sample data
+        working-directory: dbt
+        env:
+          LP_RAW_PATH: ../.ci-data/raw
+          LP_DUCKDB_PATH: ../ci.duckdb
+        run: dbt build --profiles-dir .
+
+      - name: Build dashboard
+        run: london-pulse dashboard --db ci.duckdb --out .ci-site

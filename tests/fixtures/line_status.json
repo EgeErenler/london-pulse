@@ -1,0 +1,39 @@
+[
+  {
+    "$type": "Tfl.Api.Presentation.Entities.Line, Tfl.Api.Presentation.Entities",
+    "id": "bakerloo",
+    "name": "Bakerloo",
+    "modeName": "tube",
+    "lineStatuses": [
+      {"id": 0, "statusSeverity": 10, "statusSeverityDescription": "Good Service", "validityPeriods": []}
+    ]
+  },
+  {
+    "id": "district",
+    "name": "District",
+    "modeName": "tube",
+    "lineStatuses": [
+      {
+        "id": 0,
+        "lineId": "district",
+        "statusSeverity": 9,
+        "statusSeverityDescription": "Minor Delays",
+        "reason": "  District Line: Minor delays due to an earlier signal failure.  ",
+        "validityPeriods": [{"fromDate": "2026-10-21T07:00:00Z", "toDate": "2026-10-21T10:00:00Z", "isNow": true}]
+      },
+      {
+        "id": 1,
+        "lineId": "district",
+        "statusSeverity": 5,
+        "statusSeverityDescription": "Part Closure",
+        "reason": "No service between Earl's Court and Wimbledon.",
+        "validityPeriods": []
+      }
+    ]
+  },
+  {
+    "id": "elizabeth",
+    "name": "Elizabeth line",
+    "modeName": "elizabeth-line"
+  }
+]

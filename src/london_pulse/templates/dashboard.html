@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>London Pulse | Live transport, bikes, weather and air in London</title>
+<meta name="description" content="An automated data pipeline by Ege Erenler that tracks London's Tube status, Santander Cycles, weather and air quality every 30 minutes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700;800&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --bg:#0B1426; --panel:#111D35; --panel-2:#16264A; --line:#22345A;
+  --ink:#E8EEFA; --muted:#93A3C4; --cyan:#3FD0E0; --cobalt:#7C92FF;
+  --good:#35D08A; --warn:#F5B941; --bad:#FF6B6B;
+  --display:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+  --body:"Hanken Grotesk","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+a{color:var(--cyan)}
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0F1B33,var(--bg))}
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:18px 0;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;font-family:var(--display);font-weight:800;font-size:20px}
+.pulse{width:12px;height:12px;border-radius:50%;background:var(--good);box-shadow:0 0 0 0 rgba(53,208,138,.6);animation:pulse 2s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 12px rgba(53,208,138,0)}100%{box-shadow:0 0 0 0 rgba(53,208,138,0)}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.meta{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.hero{padding:44px 0 36px}
+.hero h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,5vw,56px);letter-spacing:-.035em;line-height:1.02;margin:0 0 14px;max-width:18ch}
+.hero p{color:var(--muted);font-size:18px;max-width:62ch;margin:0}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:8px 0 40px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.kpis{grid-template-columns:1fr}}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;min-width:0}
+.kpi .label{color:var(--muted);font-size:14px}
+.kpi .value{font-family:var(--display);font-weight:800;font-size:38px;letter-spacing:-.03em;line-height:1.1;margin:6px 0 4px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:14px;color:var(--muted)}
+.chip{display:inline-block;font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px}
+.chip.good{background:rgba(53,208,138,.14);color:var(--good)}
+.chip.warn{background:rgba(245,185,65,.14);color:var(--warn)}
+.chip.bad{background:rgba(255,107,107,.14);color:var(--bad)}
+section{margin:0 0 40px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}
+.card h2{font-family:var(--display);font-size:22px;letter-spacing:-.02em;margin:0 0 4px}
+.card .hint{color:var(--muted);font-size:14px;margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}}
+.chart{width:100%;height:340px}
+.chart.tall{height:440px}
+#map{height:440px;border-radius:12px;background:#0d1730}
+.status-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.status-list li{display:grid;grid-template-columns:10px 1fr auto;gap:10px;align-items:center;padding:10px 12px;background:var(--panel-2);border-radius:10px}
+.status-list i{width:10px;height:10px;border-radius:3px}
+.status-list .reason{grid-column:2/-1;color:var(--muted);font-size:13px}
+.empty{color:var(--muted);font-size:15px}
+footer{border-top:1px solid var(--line);color:var(--muted);font-size:14px;padding:24px 0 40px}
+footer .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:10px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend b{width:10px;height:10px;border-radius:50%;display:inline-block}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap top">
+    <div class="brand"><span class="pulse" aria-hidden="true"></span>London Pulse</div>
+    <div class="meta" id="updated"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="hero">
+    <h1>How London is moving, right now.</h1>
+    <p>An automated pipeline collects Tube status, Santander Cycles, weather and air quality every 30 minutes. dbt models turn the raw snapshots into the tables behind this page.</p>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <section class="grid2">
+    <div class="card">
+      <h2>Line status now</h2>
+      <p class="hint">Lines with problems first. Reasons come straight from TfL.</p>
+      <ul class="status-list" id="status"></ul>
+    </div>
+    <div class="card">
+      <h2>Reliability, last 7 days</h2>
+      <p class="hint">Share of snapshots with a normal service, by line.</p>
+      <div class="chart tall" id="reliability"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>City pulse, last 72 hours</h2>
+    <p class="hint">Bikes available across the network, against rain and temperature (London time).</p>
+    <div class="chart" id="pulseChart"></div>
+  </section>
+
+  <section class="card">
+    <h2>When do disruptions happen?</h2>
+    <p class="hint">Share of snapshots disrupted, by line and hour of day (London time).</p>
+    <div class="chart tall" id="heatmap"></div>
+  </section>
+
+  <section class="card">
+    <h2>Santander Cycles, latest snapshot</h2>
+    <p class="hint">Each dot is a docking station. Colour shows how full it is.</p>
+    <div id="map" role="img" aria-label="Map of London docking stations coloured by bike availability"></div>
+    <div class="legend">
+      <span><b style="background:var(--bad)"></b>Empty</span>
+      <span><b style="background:var(--warn)"></b>Under a third full</span>
+      <span><b style="background:var(--good)"></b>Healthy</span>
+      <span><b style="background:var(--cobalt)"></b>Almost full</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap row">
+    <div>Built by <a href="https://egeerenler.com">Ege Erenler</a>. Code on <a href="https://github.com/EgeErenler/london-pulse">GitHub</a>.</div>
+    <div>Powered by TfL Open Data. Weather and air quality by <a href="https://open-meteo.com/">Open-Meteo.com</a> (CC BY 4.0).</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const DATA = {{ data_json }};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = {ink:css('--ink'), muted:css('--muted'), line:css('--line'), cyan:css('--cyan'),
+  cobalt:css('--cobalt'), good:css('--good'), warn:css('--warn'), bad:css('--bad')};
+const fmtLondon = iso => new Date(iso.endsWith('Z')||iso.includes('+') ? iso : iso + 'Z')
+  .toLocaleString('en-GB', {timeZone:'Europe/London', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+const pct = v => v == null ? '–' : Math.round(v * 100) + '%';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const colour = id => DATA.line_colours[id] || '#7C8AA5';
+
+// Last updated
+const last = DATA.coverage.last_snapshot;
+document.getElementById('updated').textContent =
+  last ? `Last snapshot ${fmtLondon(last)} · ${DATA.coverage.snapshots} snapshots` : 'Waiting for first snapshot';
+
+// KPIs
+(function () {
+  const lines = DATA.now_lines, disrupted = lines.filter(l => l.is_disrupted);
+  const b = DATA.now_bikes, w = DATA.now_weather, a = DATA.now_air;
+  const aqiClass = !a.aqi_band ? '' : ['Good','Fair'].includes(a.aqi_band) ? 'good' : a.aqi_band === 'Moderate' ? 'warn' : 'bad';
+  const cards = [
+    {label:'Lines with problems', value:`${disrupted.length}<span style="font-size:20px;color:${C.muted}"> / ${lines.length}</span>`,
+     sub: disrupted.length ? `<span class="chip ${disrupted.length > 3 ? 'bad' : 'warn'}">${esc(disrupted.slice(0,3).map(l => l.line_name).join(', '))}</span>` : '<span class="chip good">Good service everywhere</span>'},
+    {label:'Bikes available', value:(b.bikes_available ?? '–').toLocaleString('en-GB'),
+     sub:`${pct(b.network_occupancy)} of docks filled · ${b.empty_stations ?? '–'} stations empty`},
+    {label:'Weather', value: w.temperature_c != null ? `${Math.round(w.temperature_c)}°C` : '–',
+     sub:`${esc(w.description || '')}${w.wind_speed_kmh != null ? ' · wind ' + Math.round(w.wind_speed_kmh) + ' km/h' : ''}`},
+    {label:'Air quality (European AQI)', value: a.european_aqi != null ? Math.round(a.european_aqi) : '–',
+     sub: a.aqi_band ? `<span class="chip ${aqiClass}">${esc(a.aqi_band)}</span> NO₂ ${a.nitrogen_dioxide ?? '–'} µg/m³` : ''},
+  ];
+  document.getElementById('kpis').innerHTML = cards.map(c =>
+    `<div class="kpi"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
+})();
+
+// Status list
+(function () {
+  const ul = document.getElementById('status');
+  if (!DATA.now_lines.length) { ul.innerHTML = '<li class="empty">No data yet.</li>'; return; }
+  ul.innerHTML = DATA.now_lines.map(l => `
+    <li><i style="background:${colour(l.line_id)}"></i><span>${esc(l.line_name)}</span>
+      <span class="chip ${l.is_disrupted ? 'warn' : 'good'}">${esc(l.status_description)}</span>
+      ${l.is_disrupted && l.reason ? `<span class="reason">${esc(l.reason)}</span>` : ''}</li>`).join('');
+})();
+
+const axisStyle = {axisLine:{lineStyle:{color:C.line}}, axisLabel:{color:C.muted}, splitLine:{lineStyle:{color:C.line, opacity:.5}}};
+const charts = [];
+function chart(id, option) {
+  const el = document.getElementById(id);
+  const c = echarts.init(el, null, {renderer:'svg'});
+  c.setOption(Object.assign({textStyle:{fontFamily:'Hanken Grotesk, sans-serif', color:C.ink}, animationDuration:600}, option));
+  charts.push(c);
+}
+window.addEventListener('resize', () => charts.forEach(c => c.resize()));
+
+// Reliability
+chart('reliability', {
+  grid:{left:110, right:40, top:10, bottom:30},
+  xAxis:{type:'value', min:0, max:1, ...axisStyle, axisLabel:{color:C.muted, formatter:v => Math.round(v*100)+'%'}},
+  yAxis:{type:'category', data:DATA.reliability.map(r => r.line_name), ...axisStyle, splitLine:{show:false}},
+  tooltip:{trigger:'axis', axisPointer:{type:'shadow'}, valueFormatter:v => pct(v)},
+  series:[{type:'bar', barWidth:'60%', data:DATA.reliability.map(r => ({value:r.good_share, itemStyle:{color:colour(r.line_id), borderRadius:[0,4,4,0]}})),
+    label:{show:true, position:'right', color:C.muted, formatter:p => pct(p.value)}}],
+});
+
+// City pulse
+(function () {
+  const rows = DATA.pulse, hours = rows.map(r => r.hour_local);
+  chart('pulseChart', {
+    grid:{left:60, right:60, top:40, bottom:40},
+    legend:{top:0, textStyle:{color:C.muted}},
+    tooltip:{trigger:'axis'},
+    xAxis:{type:'category', data:hours, ...axisStyle, axisLabel:{color:C.muted, formatter:v => {
+      const d = new Date(v); return d.getHours() === 0 ? d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric'}) : String(d.getHours()).padStart(2,'0')+':00'; }}},
+    yAxis:[{type:'value', name:'Bikes', nameTextStyle:{color:C.muted}, ...axisStyle},
+           {type:'value', name:'Rain mm · °C', nameTextStyle:{color:C.muted}, ...axisStyle, splitLine:{show:false}}],
+    series:[
+      {name:'Bikes available', type:'line', smooth:true, showSymbol:false, data:rows.map(r => r.avg_bikes_available),
+       lineStyle:{width:2.5, color:C.cyan}, itemStyle:{color:C.cyan}, areaStyle:{color:'rgba(63,208,224,.10)'}},
+      {name:'Rain (mm)', type:'bar', yAxisIndex:1, data:rows.map(r => r.precipitation_mm), itemStyle:{color:C.cobalt, opacity:.7}},
+      {name:'Temperature (°C)', type:'line', yAxisIndex:1, smooth:true, showSymbol:false, data:rows.map(r => r.temperature_c),
+       lineStyle:{width:1.5, type:'dashed', color:C.warn}, itemStyle:{color:C.warn}},
+    ],
+  });
+})();
+
+// Heatmap
+(function () {
+  const names = [...new Set(DATA.by_hour.map(r => r.line_name))];
+  const hours = [...Array(24).keys()];
+  chart('heatmap', {
+    grid:{left:110, right:20, top:10, bottom:70},
+    tooltip:{formatter:p => `${esc(names[p.value[1]])} at ${String(p.value[0]).padStart(2,'0')}:00<br>${pct(p.value[2])} of snapshots disrupted`},
+    xAxis:{type:'category', data:hours.map(h => String(h).padStart(2,'0')), ...axisStyle, splitLine:{show:false}},
+    yAxis:{type:'category', data:names, ...axisStyle, splitLine:{show:false}},
+    visualMap:{min:0, max:Math.max(0.2, ...DATA.by_hour.map(r => r.disrupted_share)), orient:'horizontal', left:'center', bottom:0,
+      textStyle:{color:C.muted}, inRange:{color:['#16264A', '#7C92FF', '#F5B941', '#FF6B6B']}, formatter:v => pct(v)},
+    series:[{type:'heatmap', data:DATA.by_hour.map(r => [r.hour_of_day, names.indexOf(r.line_name), r.disrupted_share]),
+      itemStyle:{borderColor:'#0B1426', borderWidth:2}}],
+  });
+})();
+
+// Map
+(function () {
+  const map = L.map('map', {scrollWheelZoom:false}).setView([51.508, -0.12], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'&copy; OpenStreetMap contributors &copy; CARTO', maxZoom:18}).addTo(map);
+  const pick = r => r.nb_bikes === 0 ? C.bad : r.occupancy_rate < 0.33 ? C.warn : r.occupancy_rate > 0.9 ? C.cobalt : C.good;
+  const pts = [];
+  DATA.stations.forEach(r => {
+    if (r.lat == null || r.lon == null) return;
+    pts.push([r.lat, r.lon]);
+    L.circleMarker([r.lat, r.lon], {radius:4, weight:0, fillOpacity:.85, fillColor:pick(r)})
+      .bindTooltip(`<b>${esc(r.station_name)}</b><br>${r.nb_bikes} bikes (${r.nb_ebikes} e-bikes) · ${r.nb_empty_docks} free docks`)
+      .addTo(map);
+  });
+  if (pts.length) map.fitBounds(pts, {padding:[20, 20]});
+})();
+</script>
+</body>
+</html>

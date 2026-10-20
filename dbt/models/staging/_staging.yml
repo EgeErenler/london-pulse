@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_tfl__line_status
+    description: Every line status from TfL, one row per status per snapshot.
+    columns:
+      - name: captured_at_utc
+        tests: [not_null]
+      - name: line_id
+        tests: [not_null]
+      - name: mode
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["tube", "overground", "dlr", "elizabeth-line"]
+
+  - name: stg_tfl__bikepoints
+    description: Every docking station from TfL BikePoint, one row per station per snapshot.
+    columns:
+      - name: station_id
+        tests: [not_null]
+      - name: lat
+        tests: [not_null]
+      - name: lon
+        tests: [not_null]
+
+  - name: stg_open_meteo__weather
+    description: Current weather in central London at each snapshot.
+    columns:
+      - name: captured_at_utc
+        tests: [unique, not_null]
+
+  - name: stg_open_meteo__air_quality
+    description: Current air quality in central London at each snapshot.
+    columns:
+      - name: captured_at_utc
+        tests: [unique, not_null]
+      - name: aqi_band
+        tests:
+          - accepted_values:
+              arguments:
+                values: ["Good", "Fair", "Moderate", "Poor", "Very poor", "Extremely poor"]

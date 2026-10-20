@@ -1,0 +1,51 @@
+name: Compact data
+
+# Once a day: merge yesterday's small snapshot files into one file per source,
+# then squash the data branch history so the repository stays small.
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: data-branch
+  cancel-in-progress: false
+
+jobs:
+  compact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out the data branch
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          path: data
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install .
+
+      - name: Merge snapshot files of finished days
+        env:
+          LP_DATA_DIR: data
+        run: london-pulse compact
+
+      - name: Replace the data branch with a single fresh commit
+        working-directory: data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan squashed
+          git add -A
+          git commit -q -m "Data as of $(date -u +%Y-%m-%d)"
+          git push -q --force origin squashed:data
