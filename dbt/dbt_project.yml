@@ -14,11 +14,13 @@ vars:
 
 models:
   london_pulse:
+    # Tables, not views: the raw path is relative, and the dashboard reads these
+    # models from a different working directory than dbt.
     staging:
-      +materialized: view
+      +materialized: table
       +schema: staging
     intermediate:
-      +materialized: view
+      +materialized: table
       +schema: intermediate
     marts:
       +materialized: table
