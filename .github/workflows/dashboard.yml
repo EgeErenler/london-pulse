@@ -1,10 +1,11 @@
 name: Dashboard
 
 # Rebuild the dbt models from all snapshots and publish the dashboard to GitHub Pages.
-# Scheduled runs use the workflow file on the default branch (main).
+# It runs after every successful ingest, so the page is at most about 15 minutes old.
 on:
-  schedule:
-    - cron: "23 */2 * * *"
+  workflow_run:
+    workflows: [Ingest]
+    types: [completed]
   push:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     outputs:
