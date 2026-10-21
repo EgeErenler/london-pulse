@@ -19,8 +19,10 @@ models:
               arguments:
                 to: ref('dim_lines')
                 field: line_id
+      - name: in_service_snapshots
+        description: Snapshots when the line was meant to run (not "Service Closed").
       - name: good_service_share
-        description: 1.0 means no disruption was seen that day.
+        description: 1.0 means no disruption was seen that day. Empty when the line was closed all day.
 
   - name: fct_disruptions_by_hour
     description: Share of snapshots disrupted, by line and hour of day (London time).

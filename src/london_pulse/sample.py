@@ -10,6 +10,7 @@ import math
 import random
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from london_pulse.sources import SOURCES
 from london_pulse.storage import write_snapshot
@@ -27,6 +28,19 @@ LINES = [
     ("mildmay", "Mildmay", "overground"),
 ]
 STATUSES = [(10, "Good Service"), (9, "Minor Delays"), (6, "Severe Delays"), (5, "Part Closure")]
+CLOSED = (20, "Service Closed")
+NIGHT_TUBE = {"central", "jubilee", "northern", "piccadilly", "victoria"}
+LONDON = ZoneInfo("Europe/London")
+
+
+def _is_closed(line_id: str, captured_at: datetime) -> bool:
+    """Most lines close from about 00:30 to 05:30. Night Tube runs on Friday and Saturday nights."""
+    local = captured_at.astimezone(LONDON)
+    minutes = local.hour * 60 + local.minute
+    if not 30 <= minutes < 330:
+        return False
+    weekend_night = local.weekday() in (5, 6)  # early hours of Saturday and Sunday
+    return not (weekend_night and line_id in NIGHT_TUBE)
 
 
 def _rows_for(captured_at: datetime, rng: random.Random) -> dict[str, list[dict]]:
@@ -37,7 +51,9 @@ def _rows_for(captured_at: datetime, rng: random.Random) -> dict[str, list[dict]
     for line_id, name, mode in LINES:
         roll = rng.random()
         severity, desc = STATUSES[0]
-        if roll < 0.04 + 0.08 * rush:
+        if _is_closed(line_id, captured_at):
+            severity, desc = CLOSED
+        elif roll < 0.04 + 0.08 * rush:
             severity, desc = STATUSES[1]
         elif roll < 0.05 + 0.1 * rush:
             severity, desc = STATUSES[2]
@@ -49,7 +65,7 @@ def _rows_for(captured_at: datetime, rng: random.Random) -> dict[str, list[dict]
                 "mode": mode,
                 "status_severity": severity,
                 "status_description": desc,
-                "reason": None if severity == 10 else f"{name}: {desc.lower()} (sample data)",
+                "reason": None if severity in (10, 20) else f"{name}: {desc.lower()} (sample data)",
             }
         )
 

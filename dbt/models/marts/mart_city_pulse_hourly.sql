@@ -20,12 +20,19 @@ bikes as (
 ),
 
 weather as (
+    -- Open-Meteo reports 15-minute observations, and rain is the amount in those 15 minutes.
+    -- Several snapshots can see the same observation, so each one is counted once, then
+    -- the rain is added up for the hour.
     select
-        date_trunc('hour', captured_at_local)             as hour_local,
+        date_trunc('hour', timezone('Europe/London', timezone('UTC', observed_at_utc))) as hour_local,
         avg(temperature_c)                                as temperature_c,
         sum(precipitation_mm)                             as precipitation_mm,
         avg(wind_speed_kmh)                               as wind_speed_kmh
-    from {{ ref('stg_open_meteo__weather') }}
+    from (
+        select *
+        from {{ ref('stg_open_meteo__weather') }}
+        qualify row_number() over (partition by observed_at_utc order by captured_at_utc desc) = 1
+    )
     group by 1
 ),
 

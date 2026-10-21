@@ -63,12 +63,12 @@ WEATHER_CODES = {
 
 QUERIES = {
     "now_lines": """
-        select line_id, line_name, mode, status_description, is_disrupted, reason
+        select line_id, line_name, mode, status_description, is_closed, is_disrupted, reason
         from main_intermediate.int_line_status__per_snapshot
         where captured_at_utc = (
             select max(captured_at_utc) from main_intermediate.int_line_status__per_snapshot
         )
-        order by is_disrupted desc, line_name
+        order by is_disrupted desc, is_closed, line_name
     """,
     "now_bikes": """
         select * from main.fct_bike_network_snapshots
@@ -83,12 +83,14 @@ QUERIES = {
         order by captured_at_utc desc limit 1
     """,
     "reliability": """
+        -- Only snapshots when the line was meant to run count ("Service Closed" is left out).
         select line_id, any_value(line_name) as line_name,
-               round(sum(snapshots - disrupted_snapshots) / sum(snapshots), 4) as good_share,
-               sum(snapshots) as snapshots
+               round(1 - sum(disrupted_snapshots) / sum(in_service_snapshots), 4) as good_share,
+               sum(in_service_snapshots) as snapshots
         from main.fct_line_status_daily
         where service_date >= current_date - interval 7 day
         group by 1
+        having sum(in_service_snapshots) > 0
         order by good_share desc, line_name desc
     """,
     "by_hour": """

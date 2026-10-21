@@ -12,7 +12,9 @@ select
     cast(status_severity as integer)          as status_severity,
     coalesce(status_description, 'Unknown')   as status_description,
     reason,
+    coalesce(status_severity = {{ tfl_closed_severity() }}, false) as is_closed,
     status_severity is not null
-        and status_severity not in {{ tfl_normal_severities() }} as is_disrupted
+        and status_severity not in {{ tfl_normal_severities() }}
+        and status_severity <> {{ tfl_closed_severity() }} as is_disrupted
 from source
 where line_id is not null

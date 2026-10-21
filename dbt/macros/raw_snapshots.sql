@@ -7,7 +7,13 @@ read_parquet(
 )
 {%- endmacro %}
 
-{#- TfL severities that mean the line is running normally or is closed on purpose. -#}
+{#- TfL severities that mean the line is running normally: Good Service, No Issues, Information. -#}
 {% macro tfl_normal_severities() -%}
-(10, 18, 19, 20)
+(10, 18, 19)
+{%- endmacro %}
+
+{#- TfL severity 20 is "Service Closed": the line is not meant to run (for example at night).
+    It is neither good service nor a disruption, so reliability leaves it out. -#}
+{% macro tfl_closed_severity() -%}
+20
 {%- endmacro %}

@@ -43,6 +43,10 @@ header{border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0F
 .chip.good{background:rgba(53,208,138,.14);color:var(--good)}
 .chip.warn{background:rgba(245,185,65,.14);color:var(--warn)}
 .chip.bad{background:rgba(255,107,107,.14);color:var(--bad)}
+.chip.closed{background:rgba(147,163,196,.14);color:var(--muted)}
+.note{margin:-4px 0 14px;padding:10px 12px;border-radius:10px;background:var(--panel-2);color:var(--muted);font-size:13.5px}
+.note:empty{display:none}
+.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.85) contrast(.9) saturate(.4)}
 section{margin:0 0 40px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}
 .card h2{font-family:var(--display);font-size:22px;letter-spacing:-.02em;margin:0 0 4px}
@@ -84,24 +88,27 @@ footer .row{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div class="card">
       <h2>Line status now</h2>
       <p class="hint">Lines with problems first. Reasons come straight from TfL.</p>
+      <p class="note" id="statusNote"></p>
       <ul class="status-list" id="status"></ul>
     </div>
     <div class="card">
       <h2>Reliability, last 7 days</h2>
-      <p class="hint">Share of snapshots with a normal service, by line.</p>
+      <p class="hint">Share of snapshots with a normal service, by line. Times when a line is closed, such as at night, are left out.</p>
+      <p class="note" id="reliabilityNote"></p>
       <div class="chart tall" id="reliability"></div>
     </div>
   </section>
 
   <section class="card">
     <h2>City pulse, last 72 hours</h2>
-    <p class="hint">Bikes available across the network, against rain and temperature (London time).</p>
+    <p class="hint">Bikes available across the network, against rain per hour and temperature (London time).</p>
     <div class="chart" id="pulseChart"></div>
   </section>
 
   <section class="card">
     <h2>When do disruptions happen?</h2>
-    <p class="hint">Share of snapshots disrupted, by line and hour of day (London time).</p>
+    <p class="hint">Share of snapshots disrupted, by line and hour of day (London time). Hours when a line is closed are left out.</p>
+    <p class="note" id="heatmapNote"></p>
     <div class="chart tall" id="heatmap"></div>
   </section>
 
@@ -146,11 +153,18 @@ document.getElementById('updated').textContent =
 // KPIs
 (function () {
   const lines = DATA.now_lines, disrupted = lines.filter(l => l.is_disrupted);
+  const running = lines.filter(l => !l.is_closed), closed = lines.length - running.length;
   const b = DATA.now_bikes, w = DATA.now_weather, a = DATA.now_air;
   const aqiClass = !a.aqi_band ? '' : ['Good','Fair'].includes(a.aqi_band) ? 'good' : a.aqi_band === 'Moderate' ? 'warn' : 'bad';
   const cards = [
-    {label:'Lines with problems', value:`${disrupted.length}<span style="font-size:20px;color:${C.muted}"> / ${lines.length}</span>`,
-     sub: disrupted.length ? `<span class="chip ${disrupted.length > 3 ? 'bad' : 'warn'}">${esc(disrupted.slice(0,3).map(l => l.line_name).join(', '))}</span>` : '<span class="chip good">Good service everywhere</span>'},
+    !lines.length ? {label:'Lines with problems', value:'–', sub:''}
+    : !running.length ? {label:'Lines running', value:`0<span style="font-size:20px;color:${C.muted}"> / ${lines.length}</span>`,
+       sub:'<span class="chip closed">Closed for the night</span>'}
+    : {label:'Lines with problems', value:`${disrupted.length}<span style="font-size:20px;color:${C.muted}"> / ${running.length} running</span>`,
+       sub: (disrupted.length
+         ? `<span class="chip ${disrupted.length > 3 ? 'bad' : 'warn'}">${esc(disrupted.slice(0,3).map(l => l.line_name).join(', '))}${disrupted.length > 3 ? ' +' + (disrupted.length - 3) : ''}</span>`
+         : '<span class="chip good">Good service on every running line</span>')
+         + (closed ? ` · ${closed} closed` : '')},
     {label:'Bikes available', value:(b.bikes_available ?? '–').toLocaleString('en-GB'),
      sub:`${pct(b.network_occupancy)} of docks filled · ${b.empty_stations ?? '–'} stations empty`},
     {label:'Weather', value: w.temperature_c != null ? `${Math.round(w.temperature_c)}°C` : '–',
@@ -166,10 +180,15 @@ document.getElementById('updated').textContent =
 (function () {
   const ul = document.getElementById('status');
   if (!DATA.now_lines.length) { ul.innerHTML = '<li class="empty">No data yet.</li>'; return; }
-  ul.innerHTML = DATA.now_lines.map(l => `
+  const open = DATA.now_lines.filter(l => !l.is_closed), shut = DATA.now_lines.filter(l => l.is_closed);
+  const row = l => `
     <li><i style="background:${colour(l.line_id)}"></i><span>${esc(l.line_name)}</span>
-      <span class="chip ${l.is_disrupted ? 'warn' : 'good'}">${esc(l.status_description)}</span>
-      ${l.is_disrupted && l.reason ? `<span class="reason">${esc(l.reason)}</span>` : ''}</li>`).join('');
+      <span class="chip ${l.is_closed ? 'closed' : l.is_disrupted ? 'warn' : 'good'}">${esc(l.status_description)}</span>
+      ${l.is_disrupted && l.reason ? `<span class="reason">${esc(l.reason)}</span>` : ''}</li>`;
+  ul.innerHTML = open.map(row).join('') + (shut.length ? `
+    <li><i style="background:${C.muted}"></i><span>${shut.length === DATA.now_lines.length ? 'All lines' : shut.length + ' lines'} closed for now</span>
+      <span class="chip closed">Service Closed</span>
+      <span class="reason">${esc(shut.map(l => l.line_name).join(', '))}. TfL closes most lines between about 00:30 and 05:30. Night Tube runs on some lines on Friday and Saturday.</span></li>` : '');
 })();
 
 const axisStyle = {axisLine:{lineStyle:{color:C.line}}, axisLabel:{color:C.muted}, splitLine:{lineStyle:{color:C.line, opacity:.5}}};
@@ -184,7 +203,7 @@ window.addEventListener('resize', () => charts.forEach(c => c.resize()));
 
 // Reliability
 chart('reliability', {
-  grid:{left:110, right:40, top:10, bottom:30},
+  grid:{left:10, right:44, top:10, bottom:30, containLabel:true},
   xAxis:{type:'value', min:0, max:1, ...axisStyle, axisLabel:{color:C.muted, formatter:v => Math.round(v*100)+'%'}},
   yAxis:{type:'category', data:DATA.reliability.map(r => r.line_name), ...axisStyle, splitLine:{show:false}},
   tooltip:{trigger:'axis', axisPointer:{type:'shadow'}, valueFormatter:v => pct(v)},
@@ -192,25 +211,38 @@ chart('reliability', {
     label:{show:true, position:'right', color:C.muted, formatter:p => pct(p.value)}}],
 });
 
-// City pulse
+// City pulse. Hours are London time; a time axis keeps gaps in the data visible.
 (function () {
-  const rows = DATA.pulse, hours = rows.map(r => r.hour_local);
+  const rows = DATA.pulse;
+  const pair = key => rows.map(r => [r.hour_local, r[key]]);
   chart('pulseChart', {
     grid:{left:60, right:60, top:40, bottom:40},
     legend:{top:0, textStyle:{color:C.muted}},
     tooltip:{trigger:'axis'},
-    xAxis:{type:'category', data:hours, ...axisStyle, axisLabel:{color:C.muted, formatter:v => {
-      const d = new Date(v); return d.getHours() === 0 ? d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric'}) : String(d.getHours()).padStart(2,'0')+':00'; }}},
-    yAxis:[{type:'value', name:'Bikes', nameTextStyle:{color:C.muted}, ...axisStyle},
+    xAxis:{type:'time', ...axisStyle, splitLine:{show:false},
+      axisLabel:{color:C.muted, hideOverlap:true, formatter:{day:'{ee} {d} {MMM}', hour:'{HH}:{mm}', minute:'{HH}:{mm}'}}},
+    yAxis:[{type:'value', name:'Bikes', min:0, nameTextStyle:{color:C.muted}, ...axisStyle},
            {type:'value', name:'Rain mm · °C', nameTextStyle:{color:C.muted}, ...axisStyle, splitLine:{show:false}}],
     series:[
-      {name:'Bikes available', type:'line', smooth:true, showSymbol:false, data:rows.map(r => r.avg_bikes_available),
+      {name:'Bikes available', type:'line', smooth:true, showSymbol:rows.length < 6, data:pair('avg_bikes_available'),
        lineStyle:{width:2.5, color:C.cyan}, itemStyle:{color:C.cyan}, areaStyle:{color:'rgba(63,208,224,.10)'}},
-      {name:'Rain (mm)', type:'bar', yAxisIndex:1, data:rows.map(r => r.precipitation_mm), itemStyle:{color:C.cobalt, opacity:.7}},
-      {name:'Temperature (°C)', type:'line', yAxisIndex:1, smooth:true, showSymbol:false, data:rows.map(r => r.temperature_c),
+      {name:'Rain (mm)', type:'bar', yAxisIndex:1, barMaxWidth:10, data:pair('precipitation_mm'), itemStyle:{color:C.cobalt, opacity:.7}},
+      {name:'Temperature (°C)', type:'line', yAxisIndex:1, smooth:true, showSymbol:rows.length < 6, data:pair('temperature_c'),
        lineStyle:{width:1.5, type:'dashed', color:C.warn}, itemStyle:{color:C.warn}},
     ],
   });
+})();
+
+// While the history is short, say so next to the charts that need it.
+(function () {
+  const first = DATA.coverage.first_snapshot, n = DATA.coverage.snapshots || 0;
+  if (!first) return;
+  const days = (Date.parse(DATA.coverage.last_snapshot + 'Z') - Date.parse(first + 'Z')) / 864e5;
+  if (days >= 7) return;
+  const since = fmtLondon(first);
+  const msg = `Data collection started on ${since}. ${n} snapshots so far, so these figures will settle as more data comes in.`;
+  document.getElementById('reliabilityNote').textContent = msg;
+  document.getElementById('heatmapNote').textContent = `Collecting since ${since}. Empty cells are hours with no data yet.`;
 })();
 
 // Heatmap
@@ -218,7 +250,7 @@ chart('reliability', {
   const names = [...new Set(DATA.by_hour.map(r => r.line_name))];
   const hours = [...Array(24).keys()];
   chart('heatmap', {
-    grid:{left:110, right:20, top:10, bottom:70},
+    grid:{left:10, right:20, top:10, bottom:70, containLabel:true},
     tooltip:{formatter:p => `${esc(names[p.value[1]])} at ${String(p.value[0]).padStart(2,'0')}:00<br>${pct(p.value[2])} of snapshots disrupted`},
     xAxis:{type:'category', data:hours.map(h => String(h).padStart(2,'0')), ...axisStyle, splitLine:{show:false}},
     yAxis:{type:'category', data:names, ...axisStyle, splitLine:{show:false}},
@@ -232,8 +264,8 @@ chart('reliability', {
 // Map
 (function () {
   const map = L.map('map', {scrollWheelZoom:false}).setView([51.508, -0.12], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution:'&copy; OpenStreetMap contributors &copy; CARTO', maxZoom:18}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom:19}).addTo(map);
   const pick = r => r.nb_bikes === 0 ? C.bad : r.occupancy_rate < 0.33 ? C.warn : r.occupancy_rate > 0.9 ? C.cobalt : C.good;
   const pts = [];
   DATA.stations.forEach(r => {

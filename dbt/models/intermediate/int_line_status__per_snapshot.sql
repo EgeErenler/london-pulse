@@ -9,7 +9,7 @@ ranked as (
         *,
         row_number() over (
             partition by line_id, captured_at_utc
-            order by is_disrupted desc, status_severity asc
+            order by is_disrupted desc, is_closed asc, status_severity asc
         ) as rank_in_snapshot,
         string_agg(distinct reason, ' | ') over (
             partition by line_id, captured_at_utc
@@ -25,6 +25,7 @@ select
     mode,
     status_severity,
     status_description,
+    is_closed,
     is_disrupted,
     all_reasons as reason
 from ranked
