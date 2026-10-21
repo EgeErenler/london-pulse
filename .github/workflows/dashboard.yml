@@ -1,6 +1,7 @@
 name: Dashboard
 
 # Rebuild the dbt models from all snapshots and publish the dashboard to GitHub Pages.
+# Scheduled runs use the workflow file on the default branch (main).
 on:
   schedule:
     - cron: "23 */2 * * *"

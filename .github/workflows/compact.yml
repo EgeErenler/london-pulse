@@ -2,6 +2,7 @@ name: Compact data
 
 # Once a day: merge yesterday's small snapshot files into one file per source,
 # then squash the data branch history so the repository stays small.
+# Scheduled runs use the workflow file on the default branch (main).
 on:
   schedule:
     - cron: "41 2 * * *"

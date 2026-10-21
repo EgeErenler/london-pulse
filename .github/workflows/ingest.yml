@@ -1,7 +1,7 @@
 name: Ingest
 
 # Collect one snapshot from every source, twice an hour.
-# Minutes 7 and 37 avoid the busy top of the hour on GitHub's scheduler.
+# Minutes 7 and 37 avoid the busy top of the hour on the GitHub Actions scheduler.
 on:
   schedule:
     - cron: "7,37 * * * *"
