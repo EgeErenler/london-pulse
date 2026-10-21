@@ -89,7 +89,7 @@ QUERIES = {
         from main.fct_line_status_daily
         where service_date >= current_date - interval 7 day
         group by 1
-        order by good_share asc, line_name
+        order by good_share desc, line_name desc
     """,
     "by_hour": """
         select line_id, line_name, hour_of_day, disrupted_share
