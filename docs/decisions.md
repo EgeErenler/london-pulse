@@ -14,13 +14,18 @@ takes a snapshot every 15 minutes and keeps all of them.
 - **Trade-off:** more runs and more files. Daily compaction keeps the data branch small.
   Disruptions shorter than 15 minutes can still be missed.
 
-## 2. GitHub Actions as the scheduler
+## 2. GitHub Actions to run, cron-job.org to trigger
 
-A cron workflow runs `london-pulse ingest`. There is no server to pay for or patch.
+The `Ingest` workflow runs `london-pulse ingest`. There is no server to pay for or patch.
+An external scheduler (cron-job.org) calls GitHub's `workflow_dispatch` API every 15 minutes
+with a token that can only run workflows in this project's repositories.
 
-- **Trade-off:** GitHub may start scheduled runs a few minutes late, and the timestamps in the
-  data reflect when a run actually happened. For half-hourly snapshots that is acceptable.
-  Airflow or Dagster would give retries and backfills, but would be heavy for four sources.
+- **Why not GitHub's own `schedule`:** on new repositories it can start very late or not at
+  all, and even when it works, runs are often 10 to 30 minutes late. An external trigger is on time.
+- **Trade-off:** one more service to keep an eye on, and the token expires once a year.
+  The timestamps in the data still show when a run actually happened, so a late or missed run
+  is visible rather than hidden. Airflow or Dagster would add retries and backfills, but would
+  be heavy for four sources.
 
 ## 3. Raw data as Parquet on a separate `data` branch
 

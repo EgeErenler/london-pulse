@@ -1,11 +1,9 @@
 name: Ingest
 
 # Collect one snapshot from every source every 15 minutes.
-# Minutes 2, 17, 32 and 47 avoid the busy top of the hour on the GitHub Actions scheduler.
-# GitHub can delay scheduled runs by a few minutes when it is busy.
+# The trigger comes from cron-job.org, which calls the workflow_dispatch API on time.
+# GitHub's own scheduler can start late or skip runs on new repositories, so it is not used.
 on:
-  schedule:
-    - cron: "2,17,32,47 * * * *"
   workflow_dispatch:
 
 permissions:
