@@ -80,7 +80,7 @@ real APIs.
 The dashboard is a single HTML page built from the marts and published to GitHub Pages.
 
 - **Why static:** it loads fast, costs nothing and cannot go down because a server is asleep.
-- **Trade-off:** it is only as fresh as the last build (every two hours). A Streamlit or
+- **Trade-off:** it is only as fresh as the last build (after every snapshot, so about 15 minutes). A Streamlit or
   Evidence app would allow live filtering, at the cost of a running service.
 
 ## Ideas for later
