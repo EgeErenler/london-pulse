@@ -4,7 +4,7 @@
 [![Ingest](https://github.com/EgeErenler/london-pulse/actions/workflows/ingest.yml/badge.svg)](https://github.com/EgeErenler/london-pulse/actions/workflows/ingest.yml)
 [![Dashboard](https://github.com/EgeErenler/london-pulse/actions/workflows/dashboard.yml/badge.svg)](https://github.com/EgeErenler/london-pulse/actions/workflows/dashboard.yml)
 
-An automated data pipeline that takes London's pulse every 30 minutes: Tube and rail status,
+An automated data pipeline that takes London's pulse every 15 minutes: Tube and rail status,
 Santander Cycles availability, weather and air quality. Raw snapshots are stored as Parquet,
 modelled with dbt on DuckDB, tested, and published as a live dashboard.
 
@@ -32,7 +32,7 @@ flowchart LR
     end
 
     subgraph "GitHub Actions"
-        E["Ingest<br/>every 30 min"]
+        E["Ingest<br/>every 15 min"]
         F["Compact<br/>daily"]
         G["Dashboard<br/>every 2 h"]
     end

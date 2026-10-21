@@ -117,4 +117,4 @@ def write_sample(raw_dir: Path, days: int = 3, seed: int = 7) -> None:
     while t <= end:
         for name, rows in _rows_for(t, rng).items():
             write_snapshot(rows, SOURCES[name].COLUMNS, raw_dir, name, t)
-        t += timedelta(minutes=30)
+        t += timedelta(minutes=15)

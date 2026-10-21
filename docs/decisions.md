@@ -6,12 +6,13 @@ every choice here had a reasonable alternative.
 ## 1. Snapshots, not streams
 
 TfL and Open-Meteo give the *current* state, not history. To study patterns, the pipeline
-takes a snapshot every 30 minutes and keeps all of them.
+takes a snapshot every 15 minutes and keeps all of them.
 
-- **Why 30 minutes:** frequent enough to see the morning and evening peaks, light enough
-  for free GitHub Actions minutes and polite to public APIs.
-- **Trade-off:** short disruptions between two snapshots are missed. A shorter interval would
-  catch more, at the cost of more runs and more storage.
+- **Why 15 minutes:** frequent enough to catch most short disruptions and to see the morning
+  and evening peaks clearly. Public repositories get free GitHub Actions minutes, and four
+  calls an hour is still polite to public APIs. The first version used 30 minutes.
+- **Trade-off:** more runs and more files. Daily compaction keeps the data branch small.
+  Disruptions shorter than 15 minutes can still be missed.
 
 ## 2. GitHub Actions as the scheduler
 
